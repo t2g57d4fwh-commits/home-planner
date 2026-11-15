@@ -3,41 +3,43 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>My Home Planner</title>
-<meta name="theme-color" content="#f5f7f5">
 <style>
 *{box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,Arial,sans-serif;background:#f5f7f5;color:#253329;margin:0}
+body{margin:0;background:#f5f7f5;color:#253329;font:16px -apple-system,Arial,sans-serif}
 header{background:#52745d;color:white;padding:24px 18px}
-h1{font-size:25px;margin:0 0 5px}
-header p{margin:0;font-size:14px}
-nav{display:flex;gap:5px;overflow-x:auto;background:white;padding:10px}
-nav button{flex:1;min-width:90px;background:#edf1ed;color:#34523b}
-nav button.active{background:#52745d;color:white}
-button{border:0;border-radius:9px;padding:11px;font-size:14px;font-weight:600;cursor:pointer}
-main{padding:15px;max-width:750px;margin:auto}
+h1{margin:0;font-size:25px}
+header p{margin:7px 0 0}
+nav{display:flex;overflow:auto;gap:6px;background:white;padding:10px}
+button{border:0;border-radius:9px;padding:11px;font:inherit;cursor:pointer}
+nav button{background:#edf1ed;color:#34523b;white-space:nowrap}
+nav .active,.primary{background:#52745d;color:white}
+main{max-width:750px;margin:auto;padding:15px}
 .card{background:white;padding:16px;border-radius:13px;margin-bottom:12px;box-shadow:0 1px 5px #0001}
 h2{font-size:20px;margin:0 0 12px}
 h3{font-size:16px}
-input,select{width:100%;padding:11px;border:1px solid #ccd5cc;border-radius:8px;margin:5px 0 12px;font-size:16px}
-label{display:block;font-size:13px;font-weight:bold}
+.hidden{display:none}
+label{display:block;margin:12px 0 5px;font-size:13px;font-weight:bold}
+input:not([type=checkbox]),select{width:100%;padding:11px;border:1px solid #ccd5cc;border-radius:8px;font-size:16px;background:white}
+input[type=checkbox]{width:21px;height:21px;accent-color:#52745d}
 .primary{background:#52745d;color:white}
 .light{background:#eaf0ea;color:#34523b}
 .danger{background:#f9e7e7;color:#9a3434}
-.task{display:flex;align-items:center;gap:10px;padding:12px 0;border-top:1px solid #eee}
-.task input{width:21px;height:21px;margin:0;accent-color:#52745d}
+.task{display:flex;align-items:center;gap:9px;padding:12px 0;border-top:1px solid #eee}
 .task span{flex:1}
-small{color:#777}
-.overdue{color:#b14d3d}
-.actions{display:flex;gap:8px;flex-wrap:wrap}
+.task small{display:block;color:#777;font-size:12px}
+.task button{padding:7px}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:13px}
 .actions button{flex:1}
-.hidden{display:none}
+.muted{color:#777}
+.printOnly{display:none}
 @media print{
-header,nav,.no-print,form{display:none!important}
+header,nav,main{display:none!important}
+.printOnly{display:block}
 body{background:white}
-.card{box-shadow:none;border:0;padding:5px}
-.task input{appearance:none;border:1px solid black;border-radius:0;width:17px;height:17px}
+.printTask{padding:9px 0}
+.square{display:inline-block;width:16px;height:16px;border:1px solid #333;margin-right:12px}
 }
 </style>
 </head>
@@ -46,11 +48,12 @@ body{background:white}
 <h1>🏡 My Home Planner</h1>
 <p>Cleaning • Organising • Home Improvements</p>
 </header>
-<nav class="no-print">
-<button onclick="tab('today')" id="b-today">Today</button>
-<button onclick="tab('cleaning')" id="b-cleaning">Cleaning</button>
-<button onclick="tab('organising')" id="b-organising">Organising</button>
-<button onclick="tab('projects')" id="b-projects">Projects</button>
+<nav>
+<button onclick="tab('today')">Today</button>
+<button onclick="tab('cleaning')">Cleaning</button>
+<button onclick="tab('organising')">Organising</button>
+<button onclick="tab('projects')">Projects</button>
+<button onclick="tab('rooms')">Rooms</button>
 </nav>
 <main>
 <section id="today">
@@ -58,143 +61,209 @@ body{background:white}
 <h2>Today's Checklist</h2>
 <p id="date"></p>
 <div id="due"></div>
-<div class="actions no-print">
-<button class="primary" onclick="window.print()">Print / Save PDF</button>
+<div class="actions">
+<button class="primary" onclick="printList('today')">Print / Save PDF</button>
+<button class="light" onclick="printList('sunday')">Sunday Checklist</button>
 </div>
 </div>
 </section>
-
 <section id="cleaning" class="hidden">
 <div class="card">
 <h2>Cleaning Tasks</h2>
-<form onsubmit="addTask(event,'cleaning')">
-<label>Room</label><input name="room" placeholder="Kitchen, Bathroom..." required>
-<label>Cleaning task</label><input name="name" placeholder="Clean shower" required>
-<label>Type</label>
-<select name="type"><option>Daily Maintenance</option><option>Deep Cleaning</option></select>
-<label>Schedule</label>
-<select name="schedule">
-<option value="daily">Every day</option>
-<option value="sunday">Every Sunday</option>
-<option value="monday">Every Monday</option>
-<option value="weekly">Every 7 days</option>
-<option value="fortnightly">Every 14 days</option>
-<option value="monthly">Every 30 days</option>
-<option value="quarterly">Every 90 days</option>
-</select>
-<button class="primary">Add cleaning task</button>
-</form>
+<div id="cleaningForm"></div>
 </div>
 <div id="cleaningList"></div>
 </section>
-
 <section id="organising" class="hidden">
 <div class="card">
 <h2>Organising Tasks</h2>
-<form onsubmit="addTask(event,'organising')">
-<label>Room</label><input name="room" placeholder="Bedroom, Pantry..." required>
-<label>Task</label><input name="name" placeholder="Organise wardrobe" required>
-<label>Priority</label>
-<select name="priority"><option>Low</option><option>Medium</option><option>High</option></select>
-<button class="primary">Add organising task</button>
-</form>
+<div id="organisingForm"></div>
 </div>
 <div id="organisingList"></div>
 </section>
-
 <section id="projects" class="hidden">
 <div class="card">
 <h2>Home Improvement Projects</h2>
-<form onsubmit="addTask(event,'projects')">
-<label>Project name</label><input name="room" placeholder="TV unit renovation" required>
-<label>Next step</label><input name="name" placeholder="Measure wall" required>
-<label>Priority</label>
-<select name="priority"><option>Low</option><option>Medium</option><option>High</option></select>
-<button class="primary">Add project step</button>
-</form>
+<div id="projectsForm"></div>
 </div>
 <div id="projectsList"></div>
 </section>
+<section id="rooms" class="hidden">
+<div class="card">
+<h2>Manage Rooms</h2>
+<form onsubmit="addRoom(event)">
+<label>Room name</label>
+<input name="room" required placeholder="Kitchen, Bathroom...">
+<div class="actions"><button class="primary">Add Room</button></div>
+</form>
+</div>
+<div id="roomList"></div>
+</section>
 </main>
+<div id="printArea" class="printOnly"></div>
 <script>
 const KEY="my-home-planner-v1";
-let tasks=JSON.parse(localStorage.getItem(KEY)||"[]");
-const today=()=>new Date().toLocaleDateString("en-CA");
-const days={sunday:0,monday:1};
-function save(){localStorage.setItem(KEY,JSON.stringify(tasks));render()}
-function tab(id){
-document.querySelectorAll("main section").forEach(s=>s.classList.add("hidden"));
-document.getElementById(id).classList.remove("hidden");
-document.querySelectorAll("nav button").forEach(b=>b.classList.remove("active"));
-document.getElementById("b-"+id).classList.add("active");
+const ROOMKEY="my-home-planner-rooms-v2";
+let tasks=[],rooms=[];
+try{
+tasks=JSON.parse(localStorage.getItem(KEY)||"[]");
+if(!Array.isArray(tasks))tasks=[];
+rooms=JSON.parse(localStorage.getItem(ROOMKEY)||"[]");
+if(!Array.isArray(rooms))rooms=[];
+}catch(e){tasks=[];rooms=[]}
+function iso(d=new Date()){
+return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
 }
-function addTask(e,category){
+function parse(s){return new Date(s+"T12:00:00")}
+function plus(s,n){
+let d=parse(s);d.setDate(d.getDate()+n);return iso(d);
+}
+function safe(s){
+return String(s??"").replace(/[&<>"']/g,c=>({
+"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+})[c]);
+}
+function save(){
+localStorage.setItem(KEY,JSON.stringify(tasks));
+localStorage.setItem(ROOMKEY,JSON.stringify(rooms));
+render();
+}
+function migrate(){
+tasks.forEach(t=>{
+if(!t.created)t.created=iso();
+if(t.category==="cleaning"&&t.completed&&t.lastDone!==iso())t.completed=false;
+if(t.room&&!rooms.includes(t.room))rooms.push(t.room);
+});
+save();
+}
+function tab(name){
+document.querySelectorAll("main section").forEach(s=>s.classList.toggle("hidden",s.id!==name));
+document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("active",b.textContent.toLowerCase()===name));
+render();
+}
+function addRoom(e){
+e.preventDefault();
+let n=e.target.room.value.trim();
+if(n&&!rooms.includes(n))rooms.push(n);
+e.target.reset();save();
+}
+function options(current){
+return [...new Set([...rooms,current].filter(Boolean))].map(r=>`<option value="${safe(r)}" ${r===current?"selected":""}>${safe(r)}</option>`).join("");
+}
+function form(cat,t={}){
+let clean=cat==="cleaning";
+let schedules=["daily","sunday","monday","tuesday","wednesday","thursday","friday","saturday","weekly","fortnightly","monthly","quarterly","custom"];
+let labels={daily:"Every day",weekly:"Every 7 days",fortnightly:"Every 14 days",monthly:"Every 30 days",quarterly:"Every 90 days",custom:"Every X days"};
+return `<form onsubmit="submitTask(event,'${cat}','${t.id||""}')">
+<label>${cat==="projects"?"Project name":"Room"}</label>
+${cat==="projects"?`<input name="room" required value="${safe(t.room||"")}">`:`<select name="room" required><option value="">Choose room</option>${options(t.room)}</select>`}
+<label>${cat==="projects"?"Project step":"Task name"}</label>
+<input name="name" required value="${safe(t.name||"")}">
+${clean?`
+<label>Cleaning type</label>
+<select name="type">
+${["Daily Maintenance","Deep Cleaning"].map(x=>`<option ${t.type===x?"selected":""}>${x}</option>`).join("")}
+</select>
+<label>Schedule</label>
+<select name="schedule">
+${schedules.map(x=>`<option value="${x}" ${t.schedule===x?"selected":""}>${labels[x]||"Every "+x}</option>`).join("")}
+</select>
+<label>Custom interval (days)</label>
+<input name="interval" type="number" min="1" value="${t.interval||3}">
+`:`<label>Priority</label><select name="priority">${["Low","Medium","High"].map(x=>`<option ${t.priority===x?"selected":""}>${x}</option>`).join("")}</select>`}
+<div class="actions"><button class="primary">${t.id?"Save Changes":"Add Task"}</button></div>
+</form>`;
+}
+function submitTask(e,cat,id){
 e.preventDefault();
 let f=new FormData(e.target);
-tasks.push({
-id:Date.now()+Math.random(),
-category,room:f.get("room"),name:f.get("name"),
+let t=tasks.find(x=>String(x.id)===id);
+if(!t){
+t={id:String(Date.now())+Math.random(),created:iso(),lastDone:null,completed:false};
+tasks.push(t);
+}
+Object.assign(t,{
+category:cat,
+room:f.get("room"),
+name:f.get("name"),
 type:f.get("type")||"",
 schedule:f.get("schedule")||"once",
 priority:f.get("priority")||"Medium",
-created:today(),lastDone:null,completed:false
+interval:Number(f.get("interval"))||3
 });
-e.target.reset();save();
-}
-function dateFrom(s){return new Date(s+"T12:00:00")}
-function isDue(t){
-if(t.category!=="cleaning")return !t.completed;
-let now=new Date(),d=now.getDay(),last=t.lastDone;
-if(t.schedule==="daily")return last!==today();
-if(days[t.schedule]!==undefined){
-return d===days[t.schedule]&&last!==today()||
-(!last&&dateFrom(t.created)<dateFrom(today()));
-}
-let interval={weekly:7,fortnightly:14,monthly:30,quarterly:90}[t.schedule]||7;
-let start=dateFrom(last||t.created);
-start.setDate(start.getDate()+interval);
-return start<=dateFrom(today());
-}
-function toggle(id,checked){
-let t=tasks.find(x=>x.id===id);
-if(!t)return;
-t.completed=checked;
-t.lastDone=checked?today():null;
+document.getElementById(cat+"Form").innerHTML=form(cat);
 save();
 }
-function remove(id){
-if(confirm("Delete this task?")){
-tasks=tasks.filter(x=>x.id!==id);save();
-}}
-function taskHTML(t){
-return '<div class="task">'+
-'<input type="checkbox" '+(t.completed?'checked':'')+
-' onchange="toggle('+t.id+',this.checked)">'+
-'<span><b>'+escapeHTML(t.name)+'</b><br><small>'+
-escapeHTML(t.room)+' · '+escapeHTML(t.priority)+
-(t.type?' · '+escapeHTML(t.type):'')+
-'</small></span>'+
-'<button class="danger no-print" onclick="remove('+t.id+')">×</button></div>';
+function editTask(id){
+let t=tasks.find(x=>String(x.id)===String(id));
+if(!t)return;
+tab(t.category);
+document.getElementById(t.category+"Form").innerHTML=form(t.category,t);
+window.scrollTo(0,0);
 }
-function escapeHTML(s){
-return String(s||"").replace(/[&<>"']/g,c=>({
-"&":"&amp;","<":"&lt;",">":"&gt;",
-'"':"&quot;","'":"&#39;"
-})[c]);
+function removeTask(id){
+if(confirm("Delete this task?")){
+tasks=tasks.filter(x=>String(x.id)!==String(id));save();
+}
+}
+const weekdays=["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
+function nextDue(t){
+let created=t.created||iso(),last=t.lastDone;
+if(t.schedule==="daily")return last?plus(last,1):created;
+let weekday=weekdays.indexOf(t.schedule);
+if(weekday>=0){
+let start=last?plus(last,1):created;
+let d=parse(start);
+d.setDate(d.getDate()+(weekday-d.getDay()+7)%7);
+return iso(d);
+}
+let interval={weekly:7,fortnightly:14,monthly:30,quarterly:90,custom:Number(t.interval)||3}[t.schedule]||7;
+return last?plus(last,interval):created;
+}
+function due(t){
+if(t.category!=="cleaning")return !t.completed;
+return nextDue(t)<=iso();
+}
+function complete(id,checked){
+let t=tasks.find(x=>String(x.id)===String(id));
+if(!t)return;
+if(t.category==="cleaning"){
+t.lastDone=checked?iso():null;
+t.completed=checked;
+}else t.completed=checked;
+save();
+}
+function taskHTML(t){
+let done=t.category==="cleaning"?t.lastDone===iso():t.completed;
+return `<div class="task">
+<input type="checkbox" ${done?"checked":""} onchange="complete('${t.id}',this.checked)">
+<span><b>${safe(t.name)}</b><small>${safe(t.room)} · ${safe(t.type||t.priority||"")}</small></span>
+<button class="light" onclick="editTask('${t.id}')">Edit</button>
+<button class="danger" onclick="removeTask('${t.id}')">×</button>
+</div>`;
+}
+function grouped(items){
+if(!items.length)return "<p class='muted'>No tasks to show.</p>";
+return [...new Set(items.map(t=>t.room))].sort().map(r=>`<h3>${safe(r)}</h3>${items.filter(t=>t.room===r).map(taskHTML).join("")}`).join("");
 }
 function render(){
-document.getElementById("date").textContent=
-new Date().toLocaleDateString("en-AU",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
-let due=tasks.filter(isDue);
-document.getElementById("due").innerHTML=due.length?
-due.map(taskHTML).join(""):"<p>Nothing due today. Great work!</p>";
-for(let cat of ["cleaning","organising","projects"]){
-let items=tasks.filter(t=>t.category===cat);
-document.getElementById(cat+"List").innerHTML=
-'<div class="card">'+(items.length?items.map(taskHTML).join(""):"<p>No tasks added yet.</p>")+'</div>';
+document.getElementById("date").textContent=new Date().toLocaleDateString("en-AU",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+document.getElementById("due").innerHTML=grouped(tasks.filter(due));
+["cleaning","organising","projects"].forEach(cat=>{
+document.getElementById(cat+"List").innerHTML=`<div class="card">${grouped(tasks.filter(t=>t.category===cat))}</div>`;
+});
+document.getElementById("roomList").innerHTML=rooms.map(r=>`<div class="card"><b>${safe(r)}</b></div>`).join("");
 }
+function printList(mode){
+let items=mode==="today"?tasks.filter(due):tasks.filter(t=>t.category==="cleaning"&&(t.schedule==="sunday"||(due(t)&&t.schedule!=="daily")));
+let names=[...new Set(items.map(t=>t.room))].sort();
+document.getElementById("printArea").innerHTML=`<h1>${mode==="today"?"Today's Checklist":"Sunday Cleaning Checklist"}</h1><p>${new Date().toLocaleDateString("en-AU")}</p>`+names.map(r=>`<h2>${safe(r)}</h2>`+items.filter(t=>t.room===r).map(t=>`<div class="printTask"><span class="square"></span>${safe(t.name)}</div>`).join("")).join("");
+window.print();
 }
-tab("today");render();
+["cleaning","organising","projects"].forEach(cat=>{
+document.getElementById(cat+"Form").innerHTML=form(cat);
+});
+migrate();tab("today");
 </script>
 </body>
 </html>
