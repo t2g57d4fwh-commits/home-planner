@@ -264,6 +264,224 @@ window.print();
 document.getElementById(cat+"Form").innerHTML=form(cat);
 });
 migrate();tab("today");
+  
+// VERSION 3 - PDF PREVIEW AND EXPORT
+function printList(mode) {
+  const today = iso();
+  const items = mode === "today"
+    ? tasks.filter(due)
+    : tasks.filter(t =>
+        t.category === "cleaning" &&
+        (t.schedule === "sunday" ||
+         (due(t) && t.schedule !== "daily"))
+      );
+
+  const title = mode === "today"
+    ? "Today's Checklist"
+    : "Sunday Cleaning Checklist";
+
+  const old = document.getElementById("pdfPreview");
+  if (old) old.remove();
+
+  const panel = document.createElement("div");
+  panel.id = "pdfPreview";
+  panel.style.cssText =
+    "position:fixed;inset:0;background:#f5f7f5;" +
+    "z-index:9999;overflow:auto;padding:18px";
+
+  const groupedRooms = [...new Set(
+    items.map(t => t.room || "Other")
+  )].sort();
+
+  const content = groupedRooms.map(room => {
+    const lines = items.filter(t =>
+      (t.room || "Other") === room
+    ).map(t =>
+      '<div style="padding:9px 0">' +
+      '<span style="display:inline-block;width:17px;' +
+      'height:17px;border:1px solid #555;' +
+      'margin-right:10px"></span>' +
+      safe(t.name) + '</div>'
+    ).join("");
+
+    return "<h3>" + safe(room) + "</h3>" + lines;
+  }).join("");
+
+  panel.innerHTML =
+    '<div style="max-width:650px;margin:auto">' +
+    '<button id="closePDF" class="light">Close Preview</button>' +
+    '<div style="background:white;padding:20px;' +
+    'margin:15px 0;border-radius:10px">' +
+    '<h2>' + title + '</h2>' +
+    '<p>' + new Date().toLocaleDateString("en-AU") + '</p>' +
+    (content || "<p>No tasks due.</p>") +
+    '</div>' +
+    '<button id="savePDF" class="primary" ' +
+    'style="width:100%">Save / Share PDF</button>' +
+    '</div>';
+
+  document.body.appendChild(panel);
+
+  document.getElementById("closePDF").onclick =
+    () => panel.remove();
+
+  document.getElementById("savePDF").onclick =
+    () => makeChecklistPDF(title, items);
+}
+
+async function makeChecklistPDF(title, items) {
+  const clean = value => String(value || "")
+    .normalize("NFKD")
+    .replace(/[^\x20-\x7E]/g, "?");
+
+  const esc = value => clean(value)
+    .replace(/\\/g, "\\\\")
+    .replace(/\(/g, "\\(")
+    .replace(/\)/g, "\\)");
+
+  const rows = [
+    {text:title, heading:true},
+    {text:new Date().toLocaleDateString("en-AU")},
+    {text:""}
+  ];
+
+  const rooms = [...new Set(
+    items.map(t => t.room || "Other")
+  )].sort();
+
+  rooms.forEach(room => {
+    rows.push({text:room, heading:true});
+    items.filter(t =>
+      (t.room || "Other") === room
+    ).forEach(t => {
+      const words = clean(t.name).split(" ");
+      let line = "";
+      let first = true;
+
+      words.forEach(word => {
+        if ((line + " " + word).length > 65 && line) {
+          rows.push({text:line, checkbox:first});
+          first = false;
+          line = word;
+        } else {
+          line += (line ? " " : "") + word;
+        }
+      });
+
+      rows.push({text:line, checkbox:first});
+    });
+    rows.push({text:""});
+  });
+
+  if (!items.length) rows.push({text:"No tasks due."});
+
+  const objects = [];
+  const add = s => {
+    objects.push(s);
+    return objects.length;
+  };
+
+  const catalog = add("");
+  const pagesRoot = add("");
+  const font = add(
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"
+  );
+
+  const pageIds = [];
+
+  for (let start = 0; start < rows.length; start += 43) {
+    const pageRows = rows.slice(start, start + 43);
+    let stream = "";
+
+    pageRows.forEach((r, i) => {
+      const y = 790 - i * 17;
+      const x = r.checkbox ? 65 : 45;
+
+      if (r.checkbox) {
+        stream += "45 " + (y - 2) +
+          " 11 11 re S\n";
+      }
+
+      stream += "BT /F1 " +
+        (r.heading ? "15" : "11") +
+        " Tf " + x + " " + y +
+        " Td (" + esc(r.text) + ") Tj ET\n";
+    });
+
+    const contentId = add(
+      "<< /Length " + stream.length +
+      " >>\nstream\n" + stream + "endstream"
+    );
+
+    const pageId = add(
+      "<< /Type /Page /Parent " + pagesRoot +
+      " 0 R /MediaBox [0 0 595 842] " +
+      "/Resources << /Font << /F1 " + font +
+      " 0 R >> >> /Contents " + contentId +
+      " 0 R >>"
+    );
+
+    pageIds.push(pageId);
+  }
+
+  objects[catalog - 1] =
+    "<< /Type /Catalog /Pages " + pagesRoot + " 0 R >>";
+
+  objects[pagesRoot - 1] =
+    "<< /Type /Pages /Kids [" +
+    pageIds.map(id => id + " 0 R").join(" ") +
+    "] /Count " + pageIds.length + " >>";
+
+  let pdf = "%PDF-1.4\n";
+  const offsets = [0];
+
+  objects.forEach((obj, i) => {
+    offsets.push(pdf.length);
+    pdf += (i + 1) + " 0 obj\n" +
+      obj + "\nendobj\n";
+  });
+
+  const xref = pdf.length;
+  pdf += "xref\n0 " + (objects.length + 1) +
+    "\n0000000000 65535 f \n";
+
+  offsets.slice(1).forEach(offset => {
+    pdf += String(offset).padStart(10, "0") +
+      " 00000 n \n";
+  });
+
+  pdf += "trailer\n<< /Size " +
+    (objects.length + 1) +
+    " /Root " + catalog +
+    " 0 R >>\nstartxref\n" +
+    xref + "\n%%EOF";
+
+  const file = new File(
+    [pdf],
+    "home-planner-checklist.pdf",
+    {type:"application/pdf"}
+  );
+
+  try {
+    if (navigator.canShare &&
+        navigator.canShare({files:[file]})) {
+      await navigator.share({files:[file]});
+      return;
+    }
+  } catch(e) {
+    if (e.name === "AbortError") return;
+  }
+
+  const url = URL.createObjectURL(file);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = file.name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
 </script>
 </body>
 </html>
