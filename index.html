@@ -493,28 +493,11 @@ async function makeChecklistPDF(title, items) {
 
 
 // Separate printable checklists for each section
+
 function printCategoryChecklist(category) {
-  const names = {
-    cleaning: "Cleaning",
-    organising: "Organising",
-    projects: "Home Improvement Projects"
-  };
-
-  const items = tasks.filter(t => t.category === category);
-  const title = names[category] || "Checklist";
-
-  // Reuse the existing PDF generator.
-  const lines = [
-    title + " Checklist",
-    "Date: " + new Date().toLocaleDateString("en-AU"),
-    "",
-    ...items.map(t => (t.done ? "[X] " : "[ ] ") + t.name)
-  ];
-
-  if (!items.length) lines.push("No tasks added yet.");
-
   printList(category);
 }
+
 
 // Add a print button to each section.
 function addCategoryPrintButtons() {
