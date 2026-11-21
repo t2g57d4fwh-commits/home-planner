@@ -268,17 +268,26 @@ migrate();tab("today");
 // VERSION 3 - PDF PREVIEW AND EXPORT
 function printList(mode) {
   const today = iso();
-  const items = mode === "today"
-    ? tasks.filter(due)
-    : tasks.filter(t =>
+  const items =
+  mode === "today"
+    ? tasks.filter(t => t.category === "cleaning" && due(t))
+    : mode === "sunday"
+    ? tasks.filter(t =>
         t.category === "cleaning" &&
         (t.schedule === "sunday" ||
          (due(t) && t.schedule !== "daily"))
-      );
+      )
+    : tasks.filter(t => t.category === mode);
 
-  const title = mode === "today"
-    ? "Today's Checklist"
-    : "Sunday Cleaning Checklist";
+  const titles = {
+  today: "Today's Cleaning Checklist",
+  sunday: "Sunday Cleaning Checklist",
+  cleaning: "Cleaning Checklist",
+  organising: "Organising Checklist",
+  projects: "Home Improvement Projects Checklist"
+};
+
+const title = titles[mode] || "Checklist";
 
   const old = document.getElementById("pdfPreview");
   if (old) old.remove();
@@ -504,7 +513,7 @@ function printCategoryChecklist(category) {
 
   if (!items.length) lines.push("No tasks added yet.");
 
-  showChecklistPreview(lines, title);
+  printList(category);
 }
 
 // Add a print button to each section.
